@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<meta name="theme-color" content="#20302A">
+<title>Ledger</title>
+<link id="manifest" rel="manifest">
+<link id="appleicon" rel="apple-touch-icon">
+<style>
+  :root{
+    --chrome:#20302A; --paper:#E7ECE4; --card:#F5F8F1; --ink:#1C2B22;
+    --soft:#5A665C; --line:#C7D2C2; --alt:rgba(44,110,82,.05);
+    --accent:#DB8A2B; --in:#2C6E52; --out:#B24A34;
+    --mono:'SF Mono','JetBrains Mono','Roboto Mono',ui-monospace,monospace;
+    --sans:'Inter','Helvetica Neue',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--chrome);font-family:var(--sans);color:var(--ink);
+    -webkit-font-smoothing:antialiased;overscroll-behavior:none}
+  #app{max-width:460px;margin:0 auto;min-height:100vh;min-height:100dvh;background:var(--paper);
+    position:relative;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.25)}
+  button,input,select{font-family:inherit}
+  input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  ::placeholder{color:var(--soft);opacity:.7}
+
+  /* top bar */
+  .top{padding:18px 18px 14px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;justify-content:space-between;flex-shrink:0}
+  .brand{font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}
+  .title{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .mnav{display:flex;align-items:center;gap:4px}
+  .arrow{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);
+    color:var(--ink);cursor:pointer;font-size:16px;line-height:1}
+  .mlabel{font-family:var(--mono);font-size:13px;font-weight:600;min-width:108px;text-align:center}
+
+  /* scroll */
+  .scroll{flex:1;overflow-y:auto;padding:18px 18px calc(96px + env(safe-area-inset-bottom))}
+  .scroll::-webkit-scrollbar{width:0}
+  .stack{display:grid;gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .card.flush{padding:0;overflow:hidden}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin-bottom:12px}
+  .rowhead{display:flex;justify-content:space-between;align-items:center}
+  .link{border:none;background:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em}
+
+  /* hero */
+  .hero{background:var(--chrome);border-radius:18px;padding:22px 20px;color:var(--paper)}
+  .hero .lbl{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(231,236,228,.65);margin-bottom:8px}
+  .hero .net{font-family:var(--mono);font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .hero .io{display:flex;gap:22px;margin-top:18px}
+  .hero .io .k{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(231,236,228,.6)}
+  .hero .io .v{font-family:var(--mono);font-size:16px}
+  .pos{color:#8FD4B4}.neg{color:#E9A98C}
+
+  /* donut */
+  .donut{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .legend{display:grid;gap:8px;flex:1;min-width:150px}
+  .leg{display:flex;align-items:center;gap:8px;font-size:13px}
+  .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .lc{font-weight:600;flex:1}
+  .lv{font-family:var(--mono);font-size:12px;color:var(--soft)}
+  .dt-top{font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;fill:var(--soft)}
+  .dt-val{font-family:var(--mono);font-size:15px;font-weight:700;fill:var(--ink)}
+
+  /* bars */
+  .bar-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .bar-h .n{font-size:14px;font-weight:600}
+  .bar-h .a{font-family:var(--mono);font-size:12px;color:var(--soft)}
+  .bar-h .a.over{color:var(--out)}
+  .track{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+  .fill{height:100%;border-radius:99px;background:var(--in);transition:width .3s ease}
+  .fill.over{background:var(--out)}
+  .limit{width:100%;margin-top:8px;padding:8px 11px;font-size:13px;font-family:var(--mono);
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;outline:none}
+
+  /* ledger rows */
+  .colhead{display:grid;grid-template-columns:48px 1fr auto auto;gap:10px;padding:14px 18px 10px;
+    font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);
+    border-bottom:1px solid var(--line)}
+  .colhead .r{text-align:right}
+  .rowwrap{position:relative;overflow:hidden}
+  .rowdel{position:absolute;inset:0;background:var(--out);display:flex;align-items:center;
+    justify-content:flex-end;padding-right:20px;color:#fff;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .row{position:relative;display:grid;grid-template-columns:48px 1fr auto auto;gap:10px;
+    padding:13px 18px;align-items:center;background:var(--card);border-bottom:1px solid var(--line);touch-action:pan-y;will-change:transform}
+  .row.alt{background:linear-gradient(var(--alt),var(--alt)),var(--card)}
+  .row .d{font-family:var(--mono);font-size:12px;color:var(--soft)}
+  .row .cat{font-size:14px;font-weight:600;display:block}
+  .row .note{font-size:12px;color:var(--soft);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .amt{font-family:var(--mono);font-size:14px;font-weight:600;text-align:right}
+  .row .amt.in{color:var(--in)}.row .amt.out{color:var(--out)}
+  .row .bal{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:74px}
+  .row .bal .b{font-family:var(--mono);font-size:12px}
+  .row .x{opacity:0;border:none;background:none;cursor:pointer;color:var(--out);font-size:16px;line-height:1;transition:opacity .15s}
+  .row:hover .x{opacity:1}
+  .foot{display:flex;justify-content:space-between;padding:15px 18px;background:var(--ink);color:var(--paper)}
+  .foot .k{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .foot .v{font-family:var(--mono);font-size:15px;font-weight:700}
+  .empty{padding:44px 24px;text-align:center;color:var(--soft);font-size:14px;line-height:1.6}
+  .muted{font-size:14px;color:var(--soft);line-height:1.5}
+
+  /* toast */
+  .toast{position:absolute;bottom:calc(86px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);font-size:12px;font-weight:600;padding:7px 16px;border-radius:99px;
+    opacity:0;pointer-events:none;transition:opacity .2s;z-index:5}
+  .toast.show{opacity:1}
+
+  /* nav + fab */
+  .nav{position:absolute;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-around;
+    height:calc(72px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
+  .tab{border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 18px;color:var(--soft)}
+  .tab.on{color:var(--ink)}
+  .tab .t{font-size:11px;font-weight:500}
+  .tab.on .t{font-weight:700}
+  .fab{position:absolute;bottom:calc(84px + env(safe-area-inset-bottom));right:20px;width:58px;height:58px;
+    border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:30px;line-height:1;cursor:pointer;
+    box-shadow:0 6px 20px rgba(219,138,43,.45);z-index:6;display:flex;align-items:center;justify-content:center}
+
+  /* sheet */
+  .backdrop{position:absolute;inset:0;z-index:20;background:rgba(28,43,34,.4);display:none;align-items:flex-end;opacity:0;transition:opacity .2s}
+  .backdrop.open{display:flex;opacity:1}
+  .sheet{background:var(--paper);width:100%;border-radius:22px 22px 0 0;padding:10px 20px calc(26px + env(safe-area-inset-bottom));
+    transform:translateY(100%);transition:transform .25s ease}
+  .backdrop.open .sheet{transform:translateY(0)}
+  .grab{width:40px;height:4px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+  .toggle{display:flex;gap:8px;margin-bottom:14px}
+  .toggle button{flex:1;padding:11px 0;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;
+    letter-spacing:.03em;border:1px solid var(--line);background:transparent;color:var(--soft);transition:all .15s}
+  .toggle button.in.on{background:var(--in);border-color:var(--in);color:#fff}
+  .toggle button.out.on{background:var(--out);border-color:var(--out);color:#fff}
+  .amtbox{position:relative;margin-bottom:12px}
+  .amtbox span{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-family:var(--mono);color:var(--soft);font-size:22px}
+  .field{width:100%;font-size:15px;color:var(--ink);background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:12px 13px;outline:none}
+  .amtbox .field{padding-left:34px;font-family:var(--mono);font-size:28px;font-weight:700;text-align:right}
+  .sheet .grid{display:grid;gap:10px;margin-bottom:16px}
+  .primary{width:100%;padding:15px 0;border-radius:12px;border:none;cursor:pointer;background:var(--ink);
+    color:var(--paper);font-size:16px;font-weight:700}
+  .addcat{display:flex;gap:8px}
+  .addcat button{padding:0 18px;border-radius:10px;border:none;background:var(--ink);color:var(--paper);
+    cursor:pointer;font-size:14px;font-weight:700}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div>
+      <div class="brand">Ledger</div>
+      <div class="title" id="screenTitle">Overview</div>
+    </div>
+    <div class="mnav">
+      <button class="arrow" id="prevM" aria-label="Previous month">‹</button>
+      <div class="mlabel" id="mLabel"></div>
+      <button class="arrow" id="nextM" aria-label="Next month">›</button>
+    </div>
+  </div>
+
+  <div class="scroll" id="content"></div>
+
+  <div class="toast" id="toast">Saved</div>
+
+  <div class="nav">
+    <button class="tab" data-tab="home">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21H3z"/></svg>
+      <span class="t">Home</span>
+    </button>
+    <button class="tab" data-tab="ledger">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+      <span class="t">Ledger</span>
+    </button>
+    <button class="tab" data-tab="budgets">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M20 20H2"/></svg>
+      <span class="t">Budgets</span>
+    </button>
+  </div>
+
+  <button class="fab" id="fab" aria-label="Add entry">+</button>
+
+  <div class="backdrop" id="backdrop">
+    <div class="sheet" id="sheet">
+      <div class="grab"></div>
+      <div class="toggle">
+        <button class="out on" data-type="out">Money out</button>
+        <button class="in" data-type="in">Money in</button>
+      </div>
+      <div class="amtbox"><span>$</span><input class="field" id="fAmount" inputmode="decimal" placeholder="0.00"></div>
+      <div class="grid">
+        <select class="field" id="fCategory"></select>
+        <input class="field" id="fDate" type="date" style="font-family:var(--mono)">
+        <input class="field" id="fNote" placeholder="Note (optional)">
+      </div>
+      <button class="primary" id="saveTxn">Add to ledger</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ---------------- data ---------------- */
+var STORAGE_KEY = "ledger-data";
+var DEFAULT_CATEGORIES = ["Housing","Groceries","Dining","Transport","Utilities","Health","Entertainment","Shopping","Other"];
+var PAL = ["#2C6E52","#DB8A2B","#B24A34","#5B8C7B","#C7A15A","#7A9E7E","#A5643E","#4E7A8C","#8FB08A","#D0A05C"];
+
+var state = { transactions:[], budgets:{}, categories:DEFAULT_CATEGORIES.slice() };
+var month = ym();
+var tab = "home";
+var formType = "out";
+var toastTimer = null;
+
+function load(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      var p = JSON.parse(raw);
+      state.transactions = p.transactions || [];
+      state.budgets = p.budgets || {};
+      state.categories = (p.categories && p.categories.length) ? p.categories : DEFAULT_CATEGORIES.slice();
+    }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  toast("Saved");
+}
+
+/* ---------------- helpers ---------------- */
+function ym(d){ d = d || new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function todayISO(){ var d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function monthLabel(s){ var a=s.split("-"); return new Date(+a[0],+a[1]-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"}); }
+function shiftMonth(s,delta){ var a=s.split("-"); var d=new Date(+a[0],+a[1]-1+delta,1); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function fmt(n){ return (n<0?"-":"")+"$"+Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+
+/* ---------------- derived ---------------- */
+function monthTxns(){ return state.transactions.filter(function(t){ return t.date.indexOf(month)===0; }); }
+function totals(){
+  var i=0,o=0, mt=monthTxns();
+  mt.forEach(function(t){ if(t.type==="in") i+=t.amount; else o+=t.amount; });
+  return {in:i,out:o,net:i-o};
+}
+function balances(){
+  var chron = monthTxns().slice().sort(function(a,b){ return a.date===b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date); });
+  var map={}, bal=0;
+  chron.forEach(function(t){ bal += t.type==="in"?t.amount:-t.amount; map[t.id]=bal; });
+  return map;
+}
+function displayTxns(){
+  return monthTxns().slice().sort(function(a,b){ return a.date===b.date ? b.id.localeCompare(a.id) : b.date.localeCompare(a.date); });
+}
+function spendByCat(){
+  var m={};
+  monthTxns().forEach(function(t){ if(t.type==="out") m[t.category]=(m[t.category]||0)+t.amount; });
+  return m;
+}
+
+/* ---------------- actions ---------------- */
+function addTxn(){
+  var amt = parseFloat(document.getElementById("fAmount").value);
+  if(!amt || amt<=0){ document.getElementById("fAmount").focus(); return; }
+  state.transactions.push({
+    id:uid(), amount:amt, type:formType,
+    category:document.getElementById("fCategory").value,
+    date:document.getElementById("fDate").value || todayISO(),
+    note:document.getElementById("fNote").value.trim()
+  });
+  save();
+  document.getElementById("fAmount").value="";
+  document.getElementById("fNote").value="";
+  closeSheet();
+  render();
+}
+function delTxn(id){ state.transactions = state.transactions.filter(function(t){return t.id!==id;}); save(); render(); }
+function setBudget(cat,val){
+  var n=parseFloat(val);
+  if(!n || n<=0) delete state.budgets[cat]; else state.budgets[cat]=n;
+  save(); if(tab!=="budgets") render();
+}
+function addCategory(){
+  var el=document.getElementById("newcat"); if(!el) return;
+  var name=el.value.trim();
+  if(!name || state.categories.indexOf(name)>=0) return;
+  state.categories.push(name); save(); render(); fillCatSelect();
+}
+
+/* ---------------- render ---------------- */
+function barHTML(cat){
+  var sp=spendByCat()[cat]||0, b=state.budgets[cat]||0;
+  var pct=b?Math.min(100,sp/b*100):0, over=b&&sp>b;
+  return '<div class="bar-h"><span class="n">'+esc(cat)+'</span>'+
+    '<span class="a'+(over?' over':'')+'">'+fmt(sp)+(b?' / '+fmt(b):'')+'</span></div>'+
+    (b>0?'<div class="track"><div class="fill'+(over?' over':'')+'" style="width:'+pct+'%"></div></div>':'');
+}
+function rowHTML(t,idx,bal){
+  return '<div class="rowwrap">'+
+    '<div class="rowdel">Delete</div>'+
+    '<div class="row'+(idx%2?' alt':'')+'" data-id="'+t.id+'">'+
+      '<span class="d">'+t.date.slice(8)+'/'+t.date.slice(5,7)+'</span>'+
+      '<span style="min-width:0"><span class="cat">'+esc(t.category)+'</span>'+
+        (t.note?'<span class="note">'+esc(t.note)+'</span>':'')+'</span>'+
+      '<span class="amt '+(t.type==="in"?"in":"out")+'">'+(t.type==="in"?"+":"–")+fmt(t.amount)+'</span>'+
+      '<span class="bal"><span class="b">'+fmt(bal[t.id])+'</span>'+
+        '<button class="x" data-del="'+t.id+'" aria-label="Delete">×</button></span>'+
+    '</div></div>';
+}
+function donutHTML(){
+  var sp=spendByCat();
+  var entries=Object.keys(sp).map(function(k){return [k,sp[k]];}).sort(function(a,b){return b[1]-a[1];});
+  var total=entries.reduce(function(s,e){return s+e[1];},0);
+  if(!total) return '<div class="card"><div class="eyebrow">Where it went</div><p class="muted">No spending logged for '+monthLabel(month)+' yet.</p></div>';
+  var r=54,cx=70,cy=70,circ=2*Math.PI*r,off=0,circles="",legend="";
+  entries.forEach(function(e,i){
+    var frac=e[1]/total, col=PAL[i%PAL.length], len=frac*circ;
+    circles+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="16" stroke-dasharray="'+len+' '+(circ-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+    off+=len;
+    legend+='<div class="leg"><span class="dot" style="background:'+col+'"></span><span class="lc">'+esc(e[0])+'</span><span class="lv">'+fmt(e[1])+' · '+Math.round(frac*100)+'%</span></div>';
+  });
+  return '<div class="card"><div class="eyebrow">Where it went</div><div class="donut">'+
+    '<svg viewBox="0 0 140 140" width="140" height="140">'+circles+
+    '<text x="70" y="66" class="dt-top">Out</text><text x="70" y="86" class="dt-val">'+fmt(total)+'</text></svg>'+
+    '<div class="legend">'+legend+'</div></div></div>';
+}
+
+function render(){
+  document.getElementById("mLabel").textContent = monthLabel(month);
+  document.getElementById("screenTitle").textContent = tab==="home"?"Overview":tab==="ledger"?"The Ledger":"Budgets";
+  document.querySelectorAll(".tab").forEach(function(b){ b.classList.toggle("on", b.dataset.tab===tab); });
+
+  var c=document.getElementById("content"), t=totals(), html="";
+
+  if(tab==="home"){
+    html+='<div class="stack">';
+    html+='<div class="hero"><div class="lbl">Net this month</div>'+
+      '<div class="net '+(t.net<0?"neg":"pos")+'">'+fmt(t.net)+'</div>'+
+      '<div class="io"><div><div class="k">In</div><div class="v pos">'+fmt(t.in)+'</div></div>'+
+      '<div><div class="k">Out</div><div class="v neg">'+fmt(t.out)+'</div></div></div></div>';
+    html+=donutHTML();
+    var dt=displayTxns(), bal=balances();
+    html+='<div class="card flush"><div class="rowhead" style="padding:16px 18px 4px">'+
+      '<div class="eyebrow" style="margin:0">Recent</div>'+
+      (dt.length>5?'<button class="link" data-goto="ledger">See all</button>':'')+'</div>';
+    if(!dt.length) html+='<div class="empty" style="padding:20px 18px;text-align:left">Nothing logged yet.</div>';
+    else dt.slice(0,5).forEach(function(x,i){ html+=rowHTML(x,i,bal); });
+    html+='</div></div>';
+  }
+
+  else if(tab==="ledger"){
+    var d=displayTxns(), b=balances();
+    html+='<div class="card flush"><div class="colhead"><span>Date</span><span>Detail</span>'+
+      '<span class="r">Amount</span><span class="r" style="min-width:74px">Running</span></div>';
+    if(!d.length) html+='<div class="empty">No entries for '+monthLabel(month)+'.<br>Tap + to add one.</div>';
+    else{
+      d.forEach(function(x,i){ html+=rowHTML(x,i,b); });
+      html+='<div class="foot"><span class="k">Net</span><span class="v">'+fmt(t.net)+'</span></div>';
+    }
+    html+='</div>';
+  }
+
+  else{
+    html+='<div class="stack"><div class="card"><div class="eyebrow">Set monthly limits</div>';
+    if(!Object.keys(state.budgets).length && !Object.keys(spendByCat()).length)
+      html+='<p class="muted" style="margin-bottom:4px">Add a limit to any category and it fills as you spend.</p>';
+    html+='<div class="stack">';
+    state.categories.forEach(function(cat){
+      html+='<div>'+barHTML(cat)+'<input class="limit" data-budget="'+esc(cat)+'" inputmode="decimal" placeholder="Set limit" value="'+(state.budgets[cat]||"")+'"></div>';
+    });
+    html+='</div></div>';
+    html+='<div class="card"><div class="eyebrow">New category</div>'+
+      '<div class="addcat"><input class="field" id="newcat" placeholder="e.g. Subscriptions">'+
+      '<button data-action="addcat">Add</button></div></div></div>';
+  }
+
+  c.innerHTML=html;
+  attachSwipe();
+}
+
+/* ---------------- swipe to delete ---------------- */
+function attachSwipe(){
+  document.querySelectorAll(".row[data-id]").forEach(function(row){
+    var sx=0, dx=0, active=false;
+    row.addEventListener("touchstart",function(e){ sx=e.touches[0].clientX; active=true; row.style.transition="none"; },{passive:true});
+    row.addEventListener("touchmove",function(e){ if(!active) return; dx=Math.min(0,e.touches[0].clientX-sx); row.style.transform="translateX("+dx+"px)"; },{passive:true});
+    row.addEventListener("touchend",function(){
+      if(!active) return; active=false; row.style.transition="transform .2s";
+      if(dx<-110){ row.style.transform="translateX(-110%)"; var id=row.dataset.id; setTimeout(function(){ delTxn(id); },160); }
+      else row.style.transform="translateX(0)";
+      dx=0;
+    });
+  });
+}
+
+/* ---------------- sheet ---------------- */
+function fillCatSelect(){
+  var sel=document.getElementById("fCategory"), cur=sel.value;
+  sel.innerHTML=state.categories.map(function(c){return '<option>'+esc(c)+'</option>';}).join("");
+  if(cur && state.categories.indexOf(cur)>=0) sel.value=cur;
+}
+function openSheet(){
+  document.getElementById("fDate").value=todayISO();
+  fillCatSelect();
+  document.getElementById("backdrop").classList.add("open");
+  setTimeout(function(){ document.getElementById("fAmount").focus(); },260);
+}
+function closeSheet(){ document.getElementById("backdrop").classList.remove("open"); }
+function setType(tp){
+  formType=tp;
+  document.querySelectorAll(".toggle button").forEach(function(b){ b.classList.toggle("on", b.dataset.type===tp); });
+}
+
+/* ---------------- toast ---------------- */
+function toast(msg){
+  var el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ el.classList.remove("show"); },1400);
+}
+
+/* ---------------- events ---------------- */
+document.getElementById("prevM").onclick=function(){ month=shiftMonth(month,-1); render(); };
+document.getElementById("nextM").onclick=function(){ month=shiftMonth(month,1); render(); };
+document.getElementById("fab").onclick=openSheet;
+document.getElementById("saveTxn").onclick=addTxn;
+document.getElementById("backdrop").onclick=function(e){ if(e.target.id==="backdrop") closeSheet(); };
+document.querySelectorAll(".toggle button").forEach(function(b){ b.onclick=function(){ setType(b.dataset.type); }; });
+document.querySelectorAll(".tab").forEach(function(b){ b.onclick=function(){ tab=b.dataset.tab; render(); }; });
+document.getElementById("fAmount").addEventListener("keydown",function(e){ if(e.key==="Enter") addTxn(); });
+document.getElementById("fNote").addEventListener("keydown",function(e){ if(e.key==="Enter") addTxn(); });
+
+document.getElementById("content").addEventListener("click",function(e){
+  var del=e.target.closest("[data-del]"); if(del){ delTxn(del.dataset.del); return; }
+  var goto=e.target.closest("[data-goto]"); if(goto){ tab=goto.dataset.goto; render(); return; }
+  var act=e.target.closest('[data-action="addcat"]'); if(act){ addCategory(); return; }
+});
+document.getElementById("content").addEventListener("focusout",function(e){
+  var b=e.target.closest("[data-budget]"); if(b) setBudget(b.dataset.budget, b.value);
+});
+document.getElementById("content").addEventListener("keydown",function(e){
+  if(e.key!=="Enter") return;
+  if(e.target.id==="newcat") addCategory();
+  else if(e.target.matches("[data-budget]")) e.target.blur();
+});
+
+/* ---------------- icons + manifest (generated, no external files) ---------------- */
+function makeIcon(size){
+  var c=document.createElement("canvas"); c.width=c.height=size;
+  var x=c.getContext("2d");
+  x.fillStyle="#20302A"; x.fillRect(0,0,size,size);
+  x.strokeStyle="rgba(231,236,228,.18)"; x.lineWidth=Math.max(1,size*.015);
+  for(var i=1;i<=4;i++){ var y=size*(.28+i*.12); x.beginPath(); x.moveTo(size*.22,y); x.lineTo(size*.78,y); x.stroke(); }
+  x.fillStyle="#DB8A2B"; x.textAlign="center"; x.textBaseline="middle";
+  x.font="bold "+(size*.56)+"px -apple-system,system-ui,sans-serif";
+  x.fillText("$", size*.5, size*.54);
+  return c.toDataURL("image/png");
+}
+try{
+  document.getElementById("appleicon").href=makeIcon(180);
+  var manifest={ name:"Ledger", short_name:"Ledger", start_url:".", scope:".",
+    display:"standalone", background_color:"#20302A", theme_color:"#20302A",
+    icons:[{src:makeIcon(192),sizes:"192x192",type:"image/png"},
+           {src:makeIcon(512),sizes:"512x512",type:"image/png"}] };
+  var mb=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+  document.getElementById("manifest").href=URL.createObjectURL(mb);
+}catch(e){}
+
+/* ---------------- go ---------------- */
+load();
+render();
+fillCatSelect();
+</script>
+</body>
+</html>
